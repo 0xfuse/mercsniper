@@ -17,6 +17,7 @@ from typing import Iterable, List, Optional
 # --------------------------------------------------------------------------- #
 #  CONFIGURATION  ----------------------------------------------------------- #
 # --------------------------------------------------------------------------- #
+SERVER_ROOT = "~/forge_server/"
 SERVER_SCRIPT = "start.sh"  # the script that starts the server
 ERROR_STR = (
     "Attempted to load class net/minecraft/client/gui/Gui for invalid dist DEDICATED_SERVER"
