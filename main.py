@@ -120,14 +120,6 @@ class mod:
         self.modid: Optional[str] = get_modid_from_jar(str(path))
         self.dependencies: List[str] = []  # can be filled later if needed
 
-    # ---------- MOD CLASS ---------- #
-class mod:
-    """Container for a single mod JAR and its metadata."""
-    def __init__(self, path: pathlib.Path):
-        self.path = path
-        self.modid: Optional[str] = get_modid_from_jar(str(path))
-        self.dependencies: List[str] = []  # can be filled later if needed
-
     def enable(self):
         """Rename `something.jar.disabled` → `something.jar`."""
         p = self.path
