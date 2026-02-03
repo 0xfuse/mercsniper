@@ -74,7 +74,7 @@ def reset_log():
     log_path = pathlib.Path(os.path.join(SERVER_ROOT_ABS, LOG_FILE))
     try:
         log_path.write_text("")
-        print(f"[DEBUG] Reset log {log_path}")
+        # print(f"[DEBUG] Reset log {log_path}")
     except Exception as e:
         print(f"[DEBUG] Could not reset log {log_path}: {e}")
 
@@ -136,7 +136,7 @@ class mod:
             try:
                 p.rename(new_path)
                 self.path = new_path
-                print(f"[DEBUG] Enabled {p}")
+                # print(f"[DEBUG] Enabled {p}")
             except Exception as e:
                 print(f"[DEBUG] Could not enable {p}: {e}")
 
@@ -148,7 +148,7 @@ class mod:
             try:
                 p.rename(new_path)
                 self.path = new_path
-                print(f"[DEBUG] Disabled {p}")
+                # print(f"[DEBUG] Disabled {p}")
             except Exception as e:
                 print(f"[DEBUG] Could not disable {p}: {e}")
 
@@ -207,11 +207,11 @@ def main():
 
         exit_code = run_server()
         if exit_code == 124:            # timed out
-            print("   [I] Server timed out – skipping this mod.")
+            # print("   [I] Server timed out – skipping this mod.")
             m.disable()
             continue
-
-        time.sleep(2)                   # give the server a moment to finish
+        
+        # time.sleep(2)                   # give the server a moment to finish
 
         log_path = pathlib.Path(os.path.join(SERVER_ROOT_ABS, LOG_FILE))
         try:
@@ -230,7 +230,7 @@ def main():
             temp_mods = []
 
             for dep in missing:
-                print(f"Searching missing dep '{dep}' …")
+                # print(f"Searching missing dep '{dep}' …")
                 dep_mod = find_mod_by_id(dep)
                 if dep_mod is None:
                     print(f"   [W] Cannot find jar for missing mod '{dep}'")
@@ -261,6 +261,8 @@ def main():
         print(f"   {mod_name} tested")
         print("   [X] Crash string not found.")
         m.disable()
+
+    enable_all()
 
     print(f"Checked {total} mods.")
     print("No offending mod found.")
