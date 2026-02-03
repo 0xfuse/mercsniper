@@ -138,7 +138,7 @@ class mod:
                 self.path = new_path
                 # print(f"[DEBUG] Enabled {p}")
             except Exception as e:
-                print(f"[DEBUG] Could not enable {p}: {e}")
+                print(f"[DEBUG] Could not enable {self.modid}: {e}")
 
     def disable(self):
         """Rename `something.jar` → `something.jar.disabled`."""
@@ -150,7 +150,7 @@ class mod:
                 self.path = new_path
                 # print(f"[DEBUG] Disabled {p}")
             except Exception as e:
-                print(f"[DEBUG] Could not disable {p}: {e}")
+                print(f"[DEBUG] Could not disable {self.modid}: {e}")
 
 # Global list that will hold all discovered mods
 MODS: List[mod] = []
@@ -249,7 +249,7 @@ def main():
                 log_content = ""
 
             if ERROR_STR in log_content:
-                print(f"\n[X] Crash caused by {m.path}")
+                print(f"\n[X] Crash caused by {m.modid}")
                 for tm in temp_mods:
                     tm.disable()
                 m.disable()
@@ -258,7 +258,7 @@ def main():
             for tm in temp_mods:
                 tm.disable()
 
-        print(f"   {mod_name} tested")
+        print(f"   {m.modid} tested")
         print("   [X] Crash string not found.")
         m.disable()
 
@@ -268,4 +268,7 @@ def main():
     print("No offending mod found.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        enable_all()
