@@ -263,4 +263,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        print("Exiting, re-enabling all the mods")
         enable_all()
