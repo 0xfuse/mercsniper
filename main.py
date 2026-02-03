@@ -32,18 +32,18 @@ import zipfile
 import os
 from typing import Iterable, List, Optional
 
-# ---------- CONFIGURATION -------------- #
+# ---------- CONFIGURATION ---------- #
 # Expand the user directory to an absolute path for all file operations.
 SERVER_ROOT = "~/forge_server"
 SERVER_ROOT_ABS = os.path.expanduser(SERVER_ROOT)  # absolute path to the server directory
 SERVER_SCRIPT = "start.sh"              # script name inside SERVER_ROOT
 ERROR_STR = "Attempted to load class net/minecraft/client/gui/Gui for invalid dist DEDICATED_SERVER"
-TIMEOUT = 10
+TIMEOUT = 20
 MODS_DIR = "mods"                       # sub‑dir inside SERVER_ROOT
 LOG_FILE = "server_log.txt"             # log file inside SERVER_ROOT
-# -------------------------------------- #
+# ----------------------------------- #
 
-# ---------- HELPERS -------------- #
+# ---------- HELPERS ---------- #
 def get_modid_from_jar(jar_path):
     """Return the `modId` string that is stored in either
     META‑INF/mods.toml or META‑INF/mod.json.
@@ -69,38 +69,6 @@ def get_modid_from_jar(jar_path):
         print(f"[DEBUG] Failed to read modId from {jar_path}: {e}")
     return None
 
-def disable_mod(mod_path):
-    """Rename `something.jar` → `something.jar.disabled`."""
-    p = pathlib.Path(mod_path)
-    if p.suffix == ".jar":
-        new = p.with_name(p.name + ".disabled")
-        try:
-            p.rename(new)
-            print(f"[DEBUG] Disabled {p}")
-        except Exception as e:
-            print(f"[DEBUG] Could not disable {p}: {e}")
-
-def enable_mod(mod_path):
-    """Rename `something.jar.disabled` → `something.jar`."""
-    p = pathlib.Path(mod_path)
-    if p.name.endswith(".jar.disabled"):
-        new = p.with_name(p.name.replace(".jar.disabled", ".jar"))
-        try:
-            p.rename(new)
-            print(f"[DEBUG] Enabled {p}")
-        except Exception as e:
-            print(f"[DEBUG] Could not enable {p}: {e}")
-
-def disable_all():
-    """Disable every *.jar in MODS_DIR."""
-    for p in pathlib.Path(os.path.join(SERVER_ROOT_ABS, MODS_DIR)).glob("*.jar"):
-        disable_mod(str(p))
-
-def enable_all():
-    """Enable every *.jar.disabled in MODS_DIR."""
-    for p in pathlib.Path(os.path.join(SERVER_ROOT_ABS, MODS_DIR)).glob("*.jar.disabled"):
-        enable_mod(str(p))
-
 def reset_log():
     """Truncate the log file – it will be written to again."""
     log_path = pathlib.Path(os.path.join(SERVER_ROOT_ABS, LOG_FILE))
@@ -120,14 +88,6 @@ def extract_missing_ids(log_path):
     except Exception as e:
         print(f"[DEBUG] Failed to read log {log_path}: {e}")
     return missing
-
-def find_mod_by_id(target_id):
-    """Return the first JAR that contains the requested modId."""
-    for p in pathlib.Path(os.path.join(SERVER_ROOT_ABS, MODS_DIR)).glob("*.jar*"):
-        modid = get_modid_from_jar(str(p))
-        if modid == target_id:
-            return str(p)
-    return None
 
 def run_server():
     """Execute the server start script, write stdout+stderr to LOG_FILE."""
@@ -152,28 +112,103 @@ def run_server():
         print(f"[DEBUG] Failed to run server: {e}")
         return 1
 
-# ---------- MAIN -------------- #
+# ---------- MOD CLASS ---------- #
+class mod:
+    """Container for a single mod JAR and its metadata."""
+    def __init__(self, path: pathlib.Path):
+        self.path = path
+        self.modid: Optional[str] = get_modid_from_jar(str(path))
+        self.dependencies: List[str] = []  # can be filled later if needed
+
+    # ---------- MOD CLASS ---------- #
+class mod:
+    """Container for a single mod JAR and its metadata."""
+    def __init__(self, path: pathlib.Path):
+        self.path = path
+        self.modid: Optional[str] = get_modid_from_jar(str(path))
+        self.dependencies: List[str] = []  # can be filled later if needed
+
+    def enable(self):
+        """Rename `something.jar.disabled` → `something.jar`."""
+        p = self.path
+        if p.name.endswith(".jar.disabled"):
+            new_path = p.with_name(p.name.replace(".jar.disabled", ".jar"))
+            try:
+                p.rename(new_path)
+                self.path = new_path
+                print(f"[DEBUG] Enabled {p}")
+            except Exception as e:
+                print(f"[DEBUG] Could not enable {p}: {e}")
+
+    def disable(self):
+        """Rename `something.jar` → `something.jar.disabled`."""
+        p = self.path
+        if p.suffix == ".jar":
+            new_path = p.with_name(p.name + ".disabled")
+            try:
+                p.rename(new_path)
+                self.path = new_path
+                print(f"[DEBUG] Disabled {p}")
+            except Exception as e:
+                print(f"[DEBUG] Could not disable {p}: {e}")
+
+# Global list that will hold all discovered mods
+MODS: List[mod] = []
+
+def load_mods() -> List[mod]:
+    """Scan MODS_DIR once and build a list of `mod` objects."""
+    mods = []
+    mods_dir = pathlib.Path(os.path.join(SERVER_ROOT_ABS, MODS_DIR))
+    for p in mods_dir.glob("*.jar"):
+        mods.append(mod(p))
+    return mods
+
+# ---------- HELPERS (modified) ---------- #
+def disable_all():
+    """Disable every mod in MODS."""
+    for m in MODS:
+        m.disable()
+
+def enable_all():
+    """Enable every mod in MODS."""
+    for m in MODS:
+        m.enable()
+
+def find_mod_by_id(target_id):
+    """Return the `mod` instance that matches target_id."""
+    for m in MODS:
+        if m.modid == target_id:
+            return m
+    return None
+
+# ---------- MAIN ---------- #
 def main():
     print("[DEBUG] Starting mod‑crash‑finder")
-    enable_all()  # restore the original state
-    mods = [str(p) for p in pathlib.Path(os.path.join(SERVER_ROOT_ABS, MODS_DIR)).glob("*.jar")]
-    total = len(mods)
+    # Build the mod list once
+    global MODS
+    MODS = load_mods()
+    total = len(MODS)
 
     print(f"[DEBUG] Found {total} mod(s).")
+
+    if total == 0:
+        print('[DEBUG] Nothing to do, exiting...')
+        exit(1)
+
     disable_all()
     print("[DEBUG] All mods disabled. Starting test loop.")
 
-    for idx, mod in enumerate(mods, start=1):
-        mod_name = os.path.basename(mod)
-        print(f"\n[{idx}/{total}] Enabling {mod_name}...")
+    for idx, m in enumerate(MODS, start=1):
+        mod_name = os.path.basename(str(m.path))
+        print(f"\n[{idx}/{total}] Enabling '{m.modid}' ({mod_name})...")
 
-        enable_mod(mod)                 # enable this mod
+        m.enable()                 # enable this mod
         reset_log()
 
         exit_code = run_server()
         if exit_code == 124:            # timed out
             print("   [I] Server timed out – skipping this mod.")
-            disable_mod(mod)
+            m.disable()
             continue
 
         time.sleep(2)                   # give the server a moment to finish
@@ -186,22 +221,22 @@ def main():
             log_content = ""
 
         if ERROR_STR in log_content:
-            print(f"\n[X] Crash caused by {mod}")
+            print(f"\n[X] Crash caused by {m.path}")
             return
 
         missing = extract_missing_ids(log_path)
         if missing:
             print(f"   [W] Missing deps: {' '.join(missing)}")
-            temp_jars = []
+            temp_mods = []
 
             for dep in missing:
                 print(f"Searching missing dep '{dep}' …")
-                jar = find_mod_by_id(dep)
-                if jar is None:
+                dep_mod = find_mod_by_id(dep)
+                if dep_mod is None:
                     print(f"   [W] Cannot find jar for missing mod '{dep}'")
                     continue
-                enable_mod(jar)
-                temp_jars.append(jar)
+                dep_mod.enable()
+                temp_mods.append(dep_mod)
 
             reset_log()
             exit_code = run_server()
@@ -214,22 +249,21 @@ def main():
                 log_content = ""
 
             if ERROR_STR in log_content:
-                print(f"\n[X] Crash caused by {mod}")
-                for j in temp_jars:
-                    disable_mod(j)
-                disable_mod(mod)
+                print(f"\n[X] Crash caused by {m.path}")
+                for tm in temp_mods:
+                    tm.disable()
+                m.disable()
                 return
 
-            for j in temp_jars:
-                disable_mod(j)
+            for tm in temp_mods:
+                tm.disable()
 
         print(f"   {mod_name} tested")
         print("   [X] Crash string not found.")
-        disable_mod(mod)
+        m.disable()
 
     print(f"Checked {total} mods.")
     print("No offending mod found.")
 
 if __name__ == "__main__":
     main()
-
